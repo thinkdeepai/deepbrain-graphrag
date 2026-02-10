@@ -1,0 +1,61 @@
+# Docker Compose with Watch for hot-reloading during development
+# Usage: docker compose -f docker-compose.watch.yml watch
+#
+# This configuration enables hot-reload for Python code changes without rebuilding the container.
+
+services:
+  lightrag:
+    container_name: lightrag-watch
+    image: lightrag-watch:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - BUILD_MODE=development
+    ports:
+      - "${PORT:-9621}:9621"
+      - "5679:5678"  # debugpy port
+    volumes:
+      - ./data/rag_storage:/app/data/rag_storage
+      - ./data/inputs:/app/data/inputs
+      - ./data/tiktoken:/app/data/tiktoken
+      - ./config.ini:/app/config.ini
+      - ./.env:/app/.env
+    env_file:
+      - .env
+    environment:
+      - TIKTOKEN_CACHE_DIR=/app/data/tiktoken
+      - PYTHONDONTWRITEBYTECODE=1  # Prevent .pyc files
+      - PYTHONUNBUFFERED=1  # Ensure logs are not buffered
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lightrag_default
+      - deepbrain_network
+    develop:
+      watch:
+        # Sync Python source code changes (hot-reload)
+        - action: sync+restart
+          path: ./lightrag
+          target: /app/lightrag
+          ignore:
+            - "**/__pycache__"
+            - "**/*.pyc"
+            - "**/*.pyo"
+
+        # Rebuild on dependency changes
+        - action: rebuild
+          path: pyproject.toml
+
+        - action: rebuild
+          path: uv.lock
+
+        # Rebuild on frontend changes
+        - action: rebuild
+          path: lightrag_webui
+
+networks:
+  lightrag_default:
+    driver: bridge
+  deepbrain_network:
+    external: true

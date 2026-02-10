@@ -1,0 +1,33 @@
+services:
+  lightrag:
+    container_name: lightrag-custom
+    image: lightrag-custom:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - BUILD_MODE=development
+    ports:
+      - "${PORT:-9621}:9621"
+    volumes:
+      - ./data/rag_storage:/app/data/rag_storage
+      - ./data/inputs:/app/data/inputs
+      - ./config.ini:/app/config.ini
+      - ./.env:/app/.env
+    env_file:
+      - .env
+    entrypoint: ["lightrag-gunicorn"]
+    command: ["--workers", "${WORKERS:-2}"]
+    environment:
+      - TIKTOKEN_CACHE_DIR=/app/data/tiktoken
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lightrag_default
+      - deepbrain_network
+networks:
+  lightrag_default:
+    driver: bridge
+  deepbrain_network:
+    external: true

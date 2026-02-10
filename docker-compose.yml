@@ -1,0 +1,37 @@
+services:
+  lightrag:
+    container_name: lightrag-custom
+    image: lightrag-custom:1.0.0-rc4
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILD_MODE=production
+      tags:
+        - 9n98q1gs.gra7.container-registry.ovh.net/deepbrain/lightrag:1.0.0-rc4
+    ports:
+      - "${PORT:-9621}:9621"
+    volumes:
+      - ./data/rag_storage:/app/data/rag_storage
+      - ./data/inputs:/app/data/inputs
+      - ./config.ini:/app/config.ini
+      - ./.env:/app/.env
+    env_file:
+      - .env
+    environment:
+      - TIKTOKEN_CACHE_DIR=/app/data/tiktoken
+    #restart: unless-stopped #this will make this container launch even after reboot, if you care for your RAM, you won't activate this :)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lightrag_default
+      - deepbrain_network
+    develop:
+      watch:
+        - action: rebuild
+          path: lightrag_webui
+networks:
+  lightrag_default:
+    driver: bridge
+  deepbrain_network:
+    external: true
